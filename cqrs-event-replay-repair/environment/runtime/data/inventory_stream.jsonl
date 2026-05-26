@@ -1,0 +1,17 @@
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_001", "timestamp": "2024-01-15T08:00:01Z", "seq": 1, "quantity": -5, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_002", "timestamp": "2024-01-15T08:00:03Z", "seq": 2, "quantity": -3, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_003", "timestamp": "2024-01-15T08:00:07Z", "seq": 3, "quantity": -10, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_001", "timestamp": "2024-01-15T08:00:09Z", "seq": 4, "quantity": -2, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_004", "timestamp": "2024-01-15T08:00:13Z", "seq": 5, "quantity": -7, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_002", "timestamp": "2024-01-15T08:00:15Z", "seq": 6, "quantity": -6, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_003", "timestamp": "2024-01-15T08:00:19Z", "seq": 7, "quantity": -3, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_001", "timestamp": "2024-01-15T08:00:21Z", "seq": 8, "quantity": -4, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_004", "timestamp": "2024-01-15T08:00:23Z", "seq": 9, "quantity": -2, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_002", "timestamp": "2024-01-15T08:00:25Z", "seq": 10, "quantity": -8, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_003", "timestamp": "2024-01-15T08:00:27Z", "seq": 11, "quantity": -5, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_001", "timestamp": "2024-01-15T08:00:29Z", "seq": 12, "quantity": -6, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_004", "timestamp": "2024-01-15T08:00:31Z", "seq": 13, "quantity": -9, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_002", "timestamp": "2024-01-15T08:00:33Z", "seq": 14, "quantity": -2, "amount": 0.0}
+{"event_type": "inventory_adjusted", "aggregate_id": "agg_003", "timestamp": "2024-01-15T08:00:35Z", "seq": 15, "quantity": -1, "amount": 0.0}
+{"event_type": "shipment_dispatched", "aggregate_id": "agg_001", "timestamp": "2024-01-15T08:00:37Z", "seq": 16, "quantity": 5, "amount": 12.50}
+{"event_type": "shipment_dispatched", "aggregate_id": "agg_003", "timestamp": "2024-01-15T08:00:39Z", "seq": 17, "quantity": 8, "amount": 15.00}

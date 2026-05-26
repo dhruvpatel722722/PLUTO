@@ -1,0 +1,37 @@
+author_name = "Dhruvkumar Patel"
+author_email = "dhruvpatel2284@gmail.com"
+category = "event_sourcing"
+difficulty = "hard"
+tags = ["cqrs", "event-sourcing", "projection", "replay", "debugging"]
+
+difficulty_explanation = "Requires identifying four interacting bugs across configuration parsing, event ordering, batch processing, and state accumulation logic spread across multiple files."
+solution_explanation = "Fix config space-splitting for accepted_event_types, correct the batch_size section reference, change projection snapshot application from accumulation to replacement, and add _stream_id to the sort key for deterministic ordering."
+verification_explanation = "Tests validate output file structure, event counts after filtering, batch sizes, individual projection values, deterministic ordering, and full end-to-end correctness."
+expert_time_estimate_hours = 3.0
+
+[task]
+name = "cqrs-event-replay-repair"
+description = "Debug a CQRS event replay engine that ingests domain events from multiple streams, orders them deterministically, and replays in batches to build aggregate projections. Fix defects in config parsing, sort ordering, batch sizing, and projection state management."
+
+[task.difficulty]
+level = "hard"
+reasoning = "Four bugs interact across config parsing, sorting, batching, and projection logic. The config space bug silently drops events, the wrong section reads incorrect batch size, snapshot accumulation inflates values, and missing sort key produces non-deterministic output."
+
+[task.runtime]
+entrypoint = "python3 -m runtime.run_engine"
+language = "python"
+dependencies = "stdlib-only"
+
+[task.validator]
+command = "bash tests/test.sh"
+description = "Runs the engine then executes pytest to validate output correctness including projections and summary statistics."
+
+[task.repair]
+command = "bash solution/solve.sh"
+description = "Applies patches to fix all four bugs then re-runs the engine to produce correct output."
+
+[task.resources]
+timeout = 300
+cpu = 2
+memory = "2GB"
+disk = "1GB"
