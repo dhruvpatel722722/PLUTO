@@ -1,0 +1,37 @@
+author_name = "Dhruvkumar Patel"
+author_email = "dhruvpatel2284@gmail.com"
+category = "signal_processing"
+difficulty = "hard"
+tags = ["signal-processing", "dsp", "anomaly-detection", "bandpass", "debugging"]
+
+difficulty_explanation = "Five interacting bugs span config section resolution, string parsing utilities, normalization mode selection from wrong section, and sort key completeness. Bugs cascade: fixing channel selection alone still fails because RMS normalization destroys energy differences needed for detection."
+solution_explanation = "Strip whitespace in channel config parsing, correct normalization section reference, fix detector section class variable, and add channel_id to detection sort key. The normalization bug is the critical one since it makes detection impossible regardless of other fixes."
+verification_explanation = "Tests validate channel selection completeness, window counts, normalization mode, threshold parameters, raw detection flags, merged detection count, specific detection intervals, and chronological ordering."
+expert_time_estimate_hours = 3.5
+
+[task]
+name = "signal-filter-repair"
+description = "Debug a multi-channel signal processing engine with cascading defects in configuration resolution, normalization mode, and detection ordering that prevent anomaly detection from working."
+
+[task.difficulty]
+level = "hard"
+reasoning = "Five bugs cascade through the processing chain. The normalization bug destroys energy information making detection impossible. The config section bugs compound: wrong threshold and merge values interact with wrong normalization. Fixing any single bug alone does not produce correct output."
+
+[task.runtime]
+entrypoint = "python3 -m runtime.run_engine"
+language = "python"
+dependencies = "stdlib-only"
+
+[task.validator]
+command = "bash tests/test.sh"
+description = "Runs the signal processing engine then validates detection output."
+
+[task.repair]
+command = "bash solution/solve.sh"
+description = "Patches all five bugs and re-runs the engine."
+
+[task.resources]
+timeout = 300
+cpu = 2
+memory = "2GB"
+disk = "1GB"
