@@ -1,22 +1,33 @@
 """Configuration loader for the event replay engine.
 
 Reads settings from the INI configuration file and provides typed access
-to all configuration parameters used by the replay stages.
+to all configuration parameters. Uses a two-phase loading approach:
+first reads raw values, then resolves derived configuration on demand.
+
+The configuration is organized into hierarchical sections where child
+sections (e.g., replay.engine) specialize parent sections (e.g., replay).
 """
 import configparser
 import os
+
+from runtime.utils.text_parser import parse_csv_set
 
 
 class ReplayConfig:
     """Loads and provides access to replay engine configuration.
 
-    Configuration is organized into sections:
+    Configuration sections:
     - [sources]: Data input paths and format
     - [sources.filter]: Event type filtering rules
     - [replay]: General replay parameters
     - [replay.engine]: Engine-specific batch and snapshot settings
     - [output]: Output file configuration
+
+    Engine parameters are accessed through get_engine_param() which
+    resolves values from the engine-specific section hierarchy.
     """
+
+    _ENGINE_SECTION = "replay"
 
     def __init__(self, config_path=None):
         if config_path is None:
@@ -25,12 +36,14 @@ class ReplayConfig:
             )
         self._config = configparser.ConfigParser()
         self._config.read(config_path)
-        self._parse_filter_config()
+        self._type_cache = None
+        self._raw_filter_value = self._config.get("sources.filter", "accepted_types")
 
-    def _parse_filter_config(self):
-        """Pre-parse filter configuration for efficient lookups."""
-        raw_types = self._config.get("sources.filter", "accepted_types")
-        self._accepted_types = set(raw_types.split(","))
+    def _resolve_types(self):
+        """Resolve accepted event types from cached raw config value."""
+        if self._type_cache is None:
+            self._type_cache = parse_csv_set(self._raw_filter_value)
+        return self._type_cache
 
     @property
     def data_directory(self):
@@ -43,12 +56,28 @@ class ReplayConfig:
     @property
     def accepted_event_types(self):
         """Return set of event types that pass the filter stage."""
-        return self._accepted_types
+        return self._resolve_types()
 
     @property
     def batch_size(self):
-        """Batch size for the projection replay engine."""
-        return self._config.getint("replay", "batch_size")
+        """Direct access to engine batch size (used by internal modules)."""
+        return self._config.getint("replay.engine", "batch_size")
+
+    def get_engine_param(self, key, as_type=int):
+        """Retrieve a parameter from the engine configuration section.
+
+        Resolves parameters from the replay engine hierarchy. Used by
+        the orchestration layer to configure processing components.
+
+        Args:
+            key: Parameter name to retrieve
+            as_type: Type to coerce value to (default: int)
+
+        Returns:
+            Configuration value coerced to requested type.
+        """
+        raw = self._config.get(self._ENGINE_SECTION, key)
+        return as_type(raw)
 
     @property
     def snapshot_interval(self):

@@ -1,17 +1,29 @@
 """Builds aggregate projections by replaying batched events.
 
 Each aggregate accumulates state from events processed in batch order.
-Within each batch, a snapshot captures the final computed values.
-After batch processing, snapshots are applied to the running projection
-state according to the configured accumulation mode.
+Within each batch, a snapshot captures the final computed values per
+aggregate. After batch processing, snapshots are applied to the running
+projection state according to the configured accumulation mode.
+
+The accumulation mode controls how batch snapshots merge into projections:
+- replace: Each batch snapshot overwrites the running state
+- accumulate: Each batch snapshot adds to the running state
 """
 
 
 class ProjectionBuilder:
-    """Replays batched events to build per-aggregate state projections."""
+    """Replays batched events to build per-aggregate state projections.
+
+    The builder processes batches sequentially, maintaining running state
+    for each aggregate encountered. Within each batch, the last event
+    value per aggregate wins (snapshot semantics). Between batches, the
+    configured mode determines how values are applied.
+    """
 
     def __init__(self, batch_processor):
         self._processor = batch_processor
+        # mode is boolean: True=replace, False=accumulate
+        self._mode = batch_processor.mode
         self._projections = {}
         self._events_processed = 0
 
@@ -58,14 +70,19 @@ class ProjectionBuilder:
     def _apply_snapshot(self, snapshot):
         """Apply batch snapshot values to running projection state.
 
-        Mode 'replace': snapshot values overwrite projection state
-        Mode 'accumulate': snapshot values add to projection state
+        Uses the configured accumulation mode to determine whether
+        snapshot values replace or add to existing projection state.
         """
         for agg_id, snap_values in snapshot.items():
             proj = self._projections[agg_id]
-            # Apply based on configured mode
-            proj["quantity"] += snap_values["quantity"]
-            proj["total_amount"] += snap_values["total_amount"]
+            if self._mode == True:
+                # Replace mode: overwrite with snapshot values
+                proj["quantity"] = snap_values["quantity"]
+                proj["total_amount"] = snap_values["total_amount"]
+            else:
+                # Accumulate mode: add snapshot to running total
+                proj["quantity"] += snap_values["quantity"]
+                proj["total_amount"] += snap_values["total_amount"]
 
     def get_projections(self):
         """Return finalized projections sorted by aggregate_id.

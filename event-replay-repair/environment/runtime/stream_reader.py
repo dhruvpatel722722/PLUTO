@@ -2,13 +2,20 @@
 
 Each file represents a distinct event source (stream). Events are annotated
 with their originating stream identifier for downstream processing.
+
+Implementation note: seq values are stream-local, not globally unique
+across streams. Two events from different streams may share the same seq.
 """
 import json
 import os
 
 
 class StreamReader:
-    """Low-level reader for JSONL event stream files."""
+    """Low-level reader for JSONL event stream files.
+
+    Reads all .jsonl files from a configured directory and produces
+    a flat list of event dictionaries annotated with source metadata.
+    """
 
     def __init__(self, data_directory):
         self._data_dir = data_directory

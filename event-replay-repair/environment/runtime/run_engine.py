@@ -36,7 +36,8 @@ def main():
     sorted_events = sorter.sort(event_filter.passed_events)
 
     # Stage 4: Process in batches and build projections
-    processor = BatchProcessor(config.batch_size, config.accumulation_mode)
+    engine_batch_size = config.get_engine_param("batch_size")
+    processor = BatchProcessor(engine_batch_size, config.accumulation_mode)
     batches = processor.create_batches(sorted_events)
 
     builder = ProjectionBuilder(processor)
@@ -53,7 +54,7 @@ def main():
         "total_rejected": event_filter.rejected_count,
         "total_processed": builder.events_processed,
         "batch_count": processor.batch_count,
-        "batch_size_used": config.batch_size,
+        "batch_size_used": processor.effective_batch_size,
         "projection_count": builder.aggregate_count,
         "accumulation_mode": config.accumulation_mode,
         "event_ordering": "timestamp_stream_seq",

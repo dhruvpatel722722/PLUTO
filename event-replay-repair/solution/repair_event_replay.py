@@ -1,102 +1,88 @@
 #!/usr/bin/env python3
 """Repair script for the CQRS event replay engine.
 
-Patches five interacting bugs across multiple modules:
-1. Config filter parsing doesn't strip whitespace from comma-separated types
-2. Batch size read from wrong config section ([replay] instead of [replay.engine])
-3. Projection snapshot application ignores accumulation_mode config
-4. Event sorter missing _stream_id in sort key for deterministic ordering
-5. ProjectionBuilder doesn't receive accumulation mode from batch processor
+Patches five interacting bugs:
+1. text_parser.parse_csv_set doesn't strip whitespace from split values
+2. config_loader.get_engine_param reads from wrong section (replay vs replay.engine)
+3. projection_builder uses == True instead of == 'replace' for mode check
+4. event_sorter ReplayOrderKey.__lt__ doesn't include stream_id in comparison
+5. batch_processor._validate_batch drops partial batches (min_batch_size too high)
 """
 import os
 import sys
 
 
+def patch_text_parser():
+    """Fix Bug A: strip whitespace in parse_csv_set."""
+    path = "/app/runtime/utils/text_parser.py"
+    with open(path, "r") as f:
+        content = f.read()
+    content = content.replace(
+        'return set(raw_value.split(","))',
+        'return set(v.strip() for v in raw_value.split(","))'
+    )
+    with open(path, "w") as f:
+        f.write(content)
+
+
 def patch_config_loader():
-    """Fix Bug 1: strip whitespace from accepted_types split.
-    Fix Bug 2: read batch_size from replay.engine section.
-    """
+    """Fix Bug B: get_engine_param should read from replay.engine section."""
     path = "/app/runtime/config_loader.py"
     with open(path, "r") as f:
         content = f.read()
-
-    # Bug 1: add strip to the split items in _parse_filter_config
     content = content.replace(
-        'self._accepted_types = set(raw_types.split(","))',
-        'self._accepted_types = set(t.strip() for t in raw_types.split(","))'
+        '_ENGINE_SECTION = "replay"',
+        '_ENGINE_SECTION = "replay.engine"'
     )
-
-    # Bug 2: read batch_size from replay.engine instead of replay
-    content = content.replace(
-        'return self._config.getint("replay", "batch_size")',
-        'return self._config.getint("replay.engine", "batch_size")'
-    )
-
     with open(path, "w") as f:
         f.write(content)
 
 
 def patch_projection_builder():
-    """Fix Bug 3: implement accumulation_mode logic in snapshot application.
-    Fix Bug 5: accept and use mode from batch processor.
-    """
+    """Fix Bug C: mode comparison should check string value, not boolean."""
     path = "/app/runtime/projection_builder.py"
     with open(path, "r") as f:
         content = f.read()
-
-    # Fix: ProjectionBuilder should use the processor's mode
     content = content.replace(
-        """    def _apply_snapshot(self, snapshot):
-        \"\"\"Apply batch snapshot values to running projection state.
-
-        Mode 'replace': snapshot values overwrite projection state
-        Mode 'accumulate': snapshot values add to projection state
-        \"\"\"
-        for agg_id, snap_values in snapshot.items():
-            proj = self._projections[agg_id]
-            # Apply based on configured mode
-            proj["quantity"] += snap_values["quantity"]
-            proj["total_amount"] += snap_values["total_amount"]""",
-        """    def _apply_snapshot(self, snapshot):
-        \"\"\"Apply batch snapshot values to running projection state.
-
-        Mode 'replace': snapshot values overwrite projection state
-        Mode 'accumulate': snapshot values add to projection state
-        \"\"\"
-        mode = self._processor.mode
-        for agg_id, snap_values in snapshot.items():
-            proj = self._projections[agg_id]
-            if mode == "replace":
-                proj["quantity"] = snap_values["quantity"]
-                proj["total_amount"] = snap_values["total_amount"]
-            else:
-                proj["quantity"] += snap_values["quantity"]
-                proj["total_amount"] += snap_values["total_amount"]"""
+        'if self._mode == True:',
+        'if self._mode == "replace":'
     )
-
     with open(path, "w") as f:
         f.write(content)
 
 
 def patch_event_sorter():
-    """Fix Bug 4: add _stream_id to sort key for deterministic ordering."""
+    """Fix Bug D: include stream_id in sort comparison for determinism."""
     path = "/app/runtime/event_sorter.py"
     with open(path, "r") as f:
         content = f.read()
-
     content = content.replace(
-        'key=lambda e: (e["timestamp"], e["seq"])',
-        'key=lambda e: (e["timestamp"], e["_stream_id"], e["seq"])'
+        'return (self.timestamp, self.seq) < (other.timestamp, other.seq)',
+        'return (self.timestamp, self.stream_id, self.seq) < (other.timestamp, other.stream_id, other.seq)'
     )
+    with open(path, "w") as f:
+        f.write(content)
 
+
+def patch_batch_processor():
+    """Fix Bug E: don't drop partial final batches."""
+    path = "/app/runtime/batch_processor.py"
+    with open(path, "r") as f:
+        content = f.read()
+    content = content.replace(
+        'self._min_batch_size = batch_size',
+        'self._min_batch_size = 1'
+    )
     with open(path, "w") as f:
         f.write(content)
 
 
 def main():
+    patch_text_parser()
     patch_config_loader()
     patch_projection_builder()
     patch_event_sorter()
+    patch_batch_processor()
 
     # Re-run engine with fixed code
     sys.path.insert(0, "/app")

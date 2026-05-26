@@ -1,6 +1,7 @@
 """Writes output files: projections and replay summary.
 
 Generates the final JSON output consumed by downstream systems.
+Output files are written to the configured output directory.
 """
 import json
 import os

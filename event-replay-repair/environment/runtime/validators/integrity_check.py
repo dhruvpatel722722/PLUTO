@@ -1,12 +1,18 @@
 """Post-replay integrity validation.
 
 Verifies that projections satisfy basic invariants after replay completes.
-This module runs after projection building to detect anomalies.
+This module runs after projection building to detect data anomalies
+that might indicate processing errors.
 """
 
 
 class IntegrityChecker:
-    """Validates projection integrity after replay."""
+    """Validates projection integrity after replay completion.
+
+    Checks event conservation (sum of per-aggregate counts matches
+    total processed) and stream coverage (each aggregate has seen
+    at least one source stream).
+    """
 
     def __init__(self, projections, summary):
         self._projections = projections

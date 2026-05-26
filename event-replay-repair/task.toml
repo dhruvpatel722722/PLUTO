@@ -4,18 +4,18 @@ category = "event_sourcing"
 difficulty = "hard"
 tags = ["cqrs", "event-sourcing", "projection", "replay", "debugging"]
 
-difficulty_explanation = "Requires identifying five interacting bugs across configuration parsing, event ordering, batch processing, and state accumulation logic spread across multiple files with misleading code structure."
-solution_explanation = "Fix config space-splitting for accepted_types, correct the batch_size section reference from [replay] to [replay.engine], implement accumulation_mode check in projection snapshot application, and add _stream_id to the sort key for deterministic ordering."
-verification_explanation = "Tests validate output schema compliance, event conservation through filtering, batch configuration correctness, individual projection values including quantities and amounts, stream coverage, and timestamp accuracy."
-expert_time_estimate_hours = 3.0
+difficulty_explanation = "Requires identifying five interacting bugs across configuration parsing utilities, comparator classes, type coercion logic, section resolution indirection, and batch validation that silently drops events. Bugs span multiple modules with misleading comments and decoy code paths."
+solution_explanation = "Fix whitespace stripping in text_parser utility, correct the config section class variable, change mode comparison from boolean equality to string equality, add stream_id to custom comparator, and lower minimum batch size threshold to accept partial final batches."
+verification_explanation = "Tests validate output schema compliance, event conservation through all processing stages, batch configuration correctness, individual projection quantities and amounts, stream coverage, and timestamp accuracy."
+expert_time_estimate_hours = 3.5
 
 [task]
 name = "event-replay-repair"
-description = "Debug a CQRS event replay engine that ingests domain events from multiple streams, orders them deterministically, and replays in batches to build aggregate projections. Fix interacting defects in config parsing, sort ordering, batch sizing, and projection state management."
+description = "Debug a CQRS event replay engine with five interacting defects spanning configuration utilities, custom comparators, type coercion, section indirection, and batch validation logic across multiple modules."
 
 [task.difficulty]
 level = "hard"
-reasoning = "Five bugs interact across config parsing, sorting, batching, and projection logic. The config space bug silently drops events affecting downstream counts, the wrong section reads incorrect batch size changing batch boundaries, snapshot accumulation ignores the configured mode, and missing sort key produces non-deterministic output. Fixing individual bugs in isolation still leaves tests failing."
+reasoning = "Five bugs interact across utility modules, config loaders, comparator classes, and processors. A whitespace parsing bug in a shared utility silently drops events, a class variable points to the wrong config section, a type coercion subtlety causes the wrong code branch to execute, a custom comparator omits a field needed for determinism, and a validation method silently discards partial batches."
 
 [task.runtime]
 entrypoint = "python3 -m runtime.run_engine"
@@ -24,11 +24,11 @@ dependencies = "stdlib-only"
 
 [task.validator]
 command = "bash tests/test.sh"
-description = "Runs the engine then executes pytest to validate output correctness including projections and summary statistics."
+description = "Runs the engine then executes pytest to validate output correctness."
 
 [task.repair]
 command = "bash solution/solve.sh"
-description = "Applies patches to fix all bugs then re-runs the engine to produce correct output."
+description = "Applies patches to fix all five bugs then re-runs the engine."
 
 [task.resources]
 timeout = 300

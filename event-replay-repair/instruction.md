@@ -15,28 +15,32 @@ A CQRS event replay engine ingests domain events from multiple source streams, m
 
 ## Processing Stages
 
-1. **Stream Reading** — Reads all `.jsonl` files from `/app/runtime/data/`, annotating each event with its source stream identifier (`_stream_id` derived from the filename).
+1. **Stream Reading** — Reads all `.jsonl` files from the data directory, annotating each event with its source stream identifier.
 
-2. **Event Filtering** — Applies the `accepted_types` configuration from the `[sources.filter]` section to retain only recognized event types. The accepted types should be: `order_placed`, `payment_received`, `inventory_adjusted`, and `shipment_dispatched`.
+2. **Event Filtering** — Applies configured acceptance rules to retain only recognized event types. All four types (order_placed, payment_received, inventory_adjusted, shipment_dispatched) should pass through.
 
-3. **Deterministic Sorting** — Orders all filtered events for reproducible replay. The correct ordering uses `timestamp` as primary key, then `_stream_id` (source file identifier) as secondary key, then `seq` (sequence within stream) as tertiary key. This three-part key ensures identical replay ordering even when events from different streams share the same timestamp.
+3. **Deterministic Sorting** — Orders all filtered events for reproducible replay. The ordering must be stable and deterministic even when events from different streams share timestamps.
 
-4. **Batch Projection** — Replays events in fixed-size batches configured in the `[replay.engine]` section. Within each batch, the last event value per aggregate wins (snapshot semantics). After batch processing, snapshot values are applied to the running projection state according to the `accumulation_mode` setting (`replace` means overwrite, not add).
+4. **Batch Projection** — Replays events in fixed-size batch windows to build aggregate state. Within each batch, the last event value per aggregate determines the batch snapshot. Snapshots are then applied to running projection state.
 
-5. **Report Generation** — Writes `/app/runtime/output/projections.json` and `/app/runtime/output/replay_summary.json`.
+5. **Report Generation** — Writes output projections and replay summary to JSON files.
 
 ## Problem
 
-The engine runs without errors but produces incorrect output. Some event types are silently dropped during filtering, batch boundaries are incorrect, computed projection values are inflated beyond expected amounts, and event ordering may be non-deterministic when events from different streams share timestamps.
+The engine runs without errors but produces incorrect output. Multiple interacting defects cause events to be silently dropped, batch boundaries to be wrong, and projection values to be computed incorrectly. The symptoms include:
+
+- Fewer events passing the filter than expected
+- Wrong number of processing batches
+- Inflated or incorrect aggregate quantities and monetary totals
+- Some events never reaching the projection stage
 
 ## Expected Correct Output
 
 When functioning correctly, the engine should:
-- Accept all four event types through the filter (55 events total, 0 rejected)
-- Process events in batches of 10 (producing 6 batches for 55 events)
-- Apply `replace` mode so batch snapshots overwrite projection state
-- Sort events by `(timestamp, _stream_id, seq)` for deterministic replay
-- Produce 4 aggregate projections with accurate quantities and amounts
+- Process all 55 events from 3 source streams (0 rejected)
+- Divide events into 6 batches of size 10 (with the last batch having 5 events)
+- Apply snapshot-replace semantics (each batch overwrites, not accumulates)
+- Produce 4 aggregate projections with deterministic values
 
 ## Output Schema
 
@@ -76,12 +80,13 @@ Array of projection objects sorted by `aggregate_id`:
 | `/app/runtime/stream_reader.py` | Reads JSONL event files and annotates with stream IDs |
 | `/app/runtime/event_filter.py` | Filters events by accepted types |
 | `/app/runtime/event_sorter.py` | Sorts events into deterministic replay order |
-| `/app/runtime/batch_processor.py` | Divides events into fixed-size batch windows |
+| `/app/runtime/batch_processor.py` | Divides events into batch windows for processing |
 | `/app/runtime/projection_builder.py` | Replays batched events to build aggregate state |
 | `/app/runtime/report_writer.py` | Writes output JSON files |
 | `/app/runtime/validators/integrity_check.py` | Post-replay validation checks |
-| `/app/runtime/config/settings.ini` | Configuration with multiple sections |
+| `/app/runtime/utils/text_parser.py` | String parsing utilities for config values |
+| `/app/runtime/config/settings.ini` | Multi-section configuration file |
 
 ## Your Task
 
-Identify and fix defects in the runtime source files so that the engine produces correct projections and summary output. The bugs involve interactions between configuration parsing, event ordering, batch sizing, and projection state management across multiple modules.
+Identify and fix defects in the runtime source files so that the engine produces correct projections and summary output. The bugs involve interactions between multiple modules and require tracing data flow through the processing stages.
