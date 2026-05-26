@@ -1,4 +1,8 @@
-"""Tests for the CQRS event replay engine output correctness."""
+"""Tests for the CQRS event replay engine output correctness.
+
+Validates that the replay engine correctly processes events through all
+stages and produces accurate aggregate projections and summary statistics.
+"""
 import json
 import os
 
@@ -21,205 +25,185 @@ def load_summary():
         return json.load(f)
 
 
-# --- EASY TESTS (pass even with buggy code) ---
+# --- STRUCTURAL TESTS ---
 
 
-class TestOutputStructure:
-    """Verify basic output file existence and structure."""
+class TestOutputIntegrity:
+    """Verify output files exist and conform to expected schema."""
 
     def test_projections_file_exists(self):
-        """Projections output file must exist at the expected path."""
+        """Output projections file must be generated."""
         assert os.path.isfile(PROJECTIONS_PATH), (
-            f"Expected projections file at {PROJECTIONS_PATH}"
+            "Projections output was not generated"
         )
 
     def test_summary_file_exists(self):
-        """Summary output file must exist at the expected path."""
+        """Output summary file must be generated."""
         assert os.path.isfile(SUMMARY_PATH), (
-            f"Expected summary file at {SUMMARY_PATH}"
+            "Summary output was not generated"
         )
 
-    def test_projections_is_valid_json_array(self):
-        """Projections output must be a valid JSON array."""
-        data = load_projections()
-        assert isinstance(data, list), "projections.json must be a JSON array"
-        assert len(data) > 0, "projections.json must not be empty"
-
-    def test_summary_has_required_fields(self):
-        """Summary output must contain all required schema fields."""
-        summary = load_summary()
-        required_fields = [
-            "total_ingested",
-            "total_filtered",
-            "total_processed",
-            "batch_count",
-            "projection_count",
-            "event_ordering",
-        ]
-        for field in required_fields:
-            assert field in summary, (
-                f"Missing required field '{field}' in replay_summary.json"
+    def test_projections_schema_compliance(self):
+        """Each projection must contain all required fields."""
+        projections = load_projections()
+        required_fields = {"aggregate_id", "quantity", "total_amount",
+                          "event_count", "last_updated", "streams_seen"}
+        for proj in projections:
+            missing = required_fields - set(proj.keys())
+            assert not missing, (
+                f"Projection missing fields: {missing}"
             )
 
+    def test_summary_schema_compliance(self):
+        """Summary must contain all required statistical fields."""
+        summary = load_summary()
+        required_fields = {"total_ingested", "total_filtered", "total_rejected",
+                          "total_processed", "batch_count", "batch_size_used",
+                          "projection_count", "accumulation_mode", "event_ordering"}
+        missing = required_fields - set(summary.keys())
+        assert not missing, (
+            f"Summary missing fields: {missing}"
+        )
 
-# --- MEDIUM TESTS (require 1-2 bug fixes) ---
+
+# --- EVENT CONSERVATION TESTS ---
 
 
-class TestEventFiltering:
-    """Verify event type filtering works correctly."""
+class TestEventConservation:
+    """Verify event counting and filtering correctness."""
 
-    def test_total_ingested_count(self):
-        """All 55 events from 3 stream files must be ingested."""
+    def test_ingestion_completeness(self):
+        """All 55 events from 3 stream files must be counted as ingested."""
         summary = load_summary()
         assert summary["total_ingested"] == 55, (
-            f"Expected 55 total ingested events (20 orders + 18 payments + 17 inventory), "
-            f"got {summary['total_ingested']}. Check /app/runtime/event_ingestor.py"
+            f"Ingestion count mismatch: expected 55, got {summary['total_ingested']}"
         )
 
-    def test_all_event_types_included_after_filter(self):
-        """All 55 events must pass filtering when all 4 types are accepted.
+    def test_filter_acceptance_rate(self):
+        """With all four event types accepted, zero events should be rejected."""
+        summary = load_summary()
+        assert summary["total_rejected"] == 0, (
+            f"Events were unexpectedly rejected: {summary['total_rejected']} "
+            f"rejected out of {summary['total_ingested']} ingested"
+        )
 
-        The accepted_event_types config must include: order_placed,
-        payment_received, inventory_adjusted, and shipment_dispatched.
-        Check /app/runtime/config/settings.ini for whitespace issues in the list.
-        """
+    def test_filter_pass_through_count(self):
+        """All ingested events must pass the type filter when properly configured."""
         summary = load_summary()
         assert summary["total_filtered"] == 55, (
-            f"Expected 55 filtered events (all types accepted), got "
-            f"{summary['total_filtered']}. Check accepted_event_types parsing "
-            f"in /app/runtime/config_loader.py — ensure items are stripped of whitespace"
+            f"Filter pass-through mismatch: expected 55, got {summary['total_filtered']}"
         )
 
-    def test_correct_batch_count(self):
-        """With 55 events and batch_size=10, there should be 6 batches.
+    def test_processing_matches_filtered(self):
+        """Every filtered event must be processed in projection building."""
+        summary = load_summary()
+        assert summary["total_processed"] == summary["total_filtered"], (
+            f"Processing gap: {summary['total_filtered']} filtered but "
+            f"only {summary['total_processed']} processed"
+        )
 
-        The batch_size should come from the [replay.projection] config section.
-        """
+
+# --- BATCH CONFIGURATION TESTS ---
+
+
+class TestBatchProcessing:
+    """Verify batch sizing and configuration correctness."""
+
+    def test_batch_size_configuration(self):
+        """Engine must use the projection-specific batch size of 10."""
+        summary = load_summary()
+        assert summary["batch_size_used"] == 10, (
+            f"Incorrect batch size: expected 10, got {summary['batch_size_used']}"
+        )
+
+    def test_batch_count_from_events(self):
+        """With 55 events and batch size 10, exactly 6 batches are expected."""
         summary = load_summary()
         assert summary["batch_count"] == 6, (
-            f"Expected 6 batches (55 events / batch_size 10), got "
-            f"{summary['batch_count']}. Check which config section batch_size "
-            f"is read from in /app/runtime/config_loader.py"
+            f"Batch count mismatch: expected 6, got {summary['batch_count']}"
+        )
+
+    def test_accumulation_mode_is_replace(self):
+        """Engine must report 'replace' accumulation mode from config."""
+        summary = load_summary()
+        assert summary["accumulation_mode"] == "replace", (
+            f"Wrong accumulation mode: expected 'replace', got '{summary['accumulation_mode']}'"
         )
 
 
-# --- HARD TESTS (require 3-4 bug fixes together) ---
+# --- PROJECTION ACCURACY TESTS ---
 
 
-class TestProjectionAccuracy:
-    """Verify projection values are computed correctly."""
+class TestProjectionValues:
+    """Verify computed projection values are mathematically correct.
 
-    def test_projection_count(self):
+    These tests validate that the engine correctly applies last-write-wins
+    semantics within each batch and maintains accurate event counts.
+    """
+
+    def test_aggregate_count(self):
         """Must produce exactly 4 aggregate projections."""
         projections = load_projections()
         assert len(projections) == 4, (
-            f"Expected 4 projections (agg_001..agg_004), got {len(projections)}"
+            f"Expected 4 aggregates, got {len(projections)}"
         )
 
-    def test_aggregate_event_counts(self):
-        """Each aggregate must have correct event_count reflecting all processed events.
-
-        agg_001: 16 events, agg_002: 14 events, agg_003: 14 events, agg_004: 11 events.
-        """
+    def test_event_count_per_aggregate(self):
+        """Each aggregate must reflect the correct number of events processed."""
         projections = load_projections()
         proj_map = {p["aggregate_id"]: p for p in projections}
-
-        expected_counts = {
-            "agg_001": 16,
-            "agg_002": 14,
-            "agg_003": 14,
-            "agg_004": 11,
-        }
-        for agg_id, expected in expected_counts.items():
-            actual = proj_map[agg_id]["event_count"]
-            assert actual == expected, (
-                f"{agg_id}: expected event_count={expected}, got {actual}. "
-                f"Ensure all event types are included and batch_size is correct."
+        expected = {"agg_001": 16, "agg_002": 14, "agg_003": 14, "agg_004": 11}
+        for agg_id, count in expected.items():
+            assert proj_map[agg_id]["event_count"] == count, (
+                f"{agg_id} event_count: expected {count}, "
+                f"got {proj_map[agg_id]['event_count']}"
             )
 
-    def test_aggregate_quantities(self):
-        """Projection quantities must reflect last-write-wins per batch, not accumulation.
-
-        Expected: agg_001=5, agg_002=0, agg_003=8, agg_004=3.
-        If values are inflated, check /app/runtime/projection_builder.py batch
-        snapshot application logic — should replace, not accumulate.
-        """
+    def test_quantity_values(self):
+        """Projection quantities must reflect last-write-wins batch semantics."""
         projections = load_projections()
         proj_map = {p["aggregate_id"]: p for p in projections}
-
-        expected_quantities = {
-            "agg_001": 5,
-            "agg_002": 0,
-            "agg_003": 8,
-            "agg_004": 3,
-        }
-        for agg_id, expected in expected_quantities.items():
-            actual = proj_map[agg_id]["quantity"]
-            assert actual == expected, (
-                f"{agg_id}: expected quantity={expected}, got {actual}. "
-                f"Check snapshot application in /app/runtime/projection_builder.py — "
-                f"batch snapshots should replace projection state, not accumulate."
+        expected = {"agg_001": 5, "agg_002": 0, "agg_003": 8, "agg_004": 3}
+        for agg_id, qty in expected.items():
+            assert proj_map[agg_id]["quantity"] == qty, (
+                f"{agg_id} quantity: expected {qty}, "
+                f"got {proj_map[agg_id]['quantity']}"
             )
 
-    def test_aggregate_total_amounts(self):
-        """Projection total_amount must reflect last-write-wins per batch.
-
-        Expected: agg_001=12.50, agg_002=29.97, agg_003=79.92, agg_004=29.97.
-        """
+    def test_total_amount_values(self):
+        """Projection amounts must reflect last-write-wins batch semantics."""
         projections = load_projections()
         proj_map = {p["aggregate_id"]: p for p in projections}
-
-        expected_amounts = {
-            "agg_001": 12.50,
-            "agg_002": 29.97,
-            "agg_003": 79.92,
-            "agg_004": 29.97,
-        }
-        for agg_id, expected in expected_amounts.items():
-            actual = proj_map[agg_id]["total_amount"]
-            assert abs(actual - expected) < 0.01, (
-                f"{agg_id}: expected total_amount={expected}, got {actual}. "
-                f"Check snapshot application and event ordering in "
-                f"/app/runtime/projection_builder.py and /app/runtime/event_sorter.py"
+        expected = {"agg_001": 12.50, "agg_002": 29.97,
+                   "agg_003": 79.92, "agg_004": 29.97}
+        for agg_id, amount in expected.items():
+            assert abs(proj_map[agg_id]["total_amount"] - amount) < 0.01, (
+                f"{agg_id} total_amount: expected {amount}, "
+                f"got {proj_map[agg_id]['total_amount']}"
             )
 
-    def test_deterministic_ordering(self):
-        """Events with same timestamp from different streams must sort by _stream_id.
+    def test_stream_coverage(self):
+        """Each aggregate must have events from all three source streams."""
+        projections = load_projections()
+        expected_streams = ["inventory_stream", "orders_stream", "payments_stream"]
+        for proj in projections:
+            assert sorted(proj["streams_seen"]) == expected_streams, (
+                f"{proj['aggregate_id']} streams_seen mismatch: "
+                f"expected {expected_streams}, got {sorted(proj['streams_seen'])}"
+            )
 
-        The event_ordering field must be 'timestamp_stream_seq'.
-        Check /app/runtime/event_sorter.py — sort key must include _stream_id
-        between timestamp and seq for deterministic replay.
-        """
-        summary = load_summary()
-        assert summary["event_ordering"] == "timestamp_stream_seq", (
-            f"Expected event_ordering='timestamp_stream_seq', "
-            f"got '{summary['event_ordering']}'"
-        )
-        # Verify deterministic output via last_updated timestamps
+    def test_last_updated_timestamps(self):
+        """Last updated must reflect the chronologically final event per aggregate."""
         projections = load_projections()
         proj_map = {p["aggregate_id"]: p for p in projections}
-        assert proj_map["agg_001"]["last_updated"] == "2024-01-15T08:00:37Z", (
-            f"agg_001 last_updated should be '2024-01-15T08:00:37Z', got "
-            f"'{proj_map['agg_001']['last_updated']}'. "
-            f"Check sort order in /app/runtime/event_sorter.py — must include "
-            f"_stream_id for deterministic ordering when timestamps collide."
-        )
-
-    def test_full_summary_correctness(self):
-        """Complete summary must match expected values with all bugs fixed."""
-        summary = load_summary()
-        assert summary["total_ingested"] == 55, (
-            f"total_ingested: expected 55, got {summary['total_ingested']}"
-        )
-        assert summary["total_filtered"] == 55, (
-            f"total_filtered: expected 55, got {summary['total_filtered']}"
-        )
-        assert summary["total_processed"] == 55, (
-            f"total_processed: expected 55, got {summary['total_processed']}"
-        )
-        assert summary["batch_count"] == 6, (
-            f"batch_count: expected 6, got {summary['batch_count']}"
-        )
-        assert summary["projection_count"] == 4, (
-            f"projection_count: expected 4, got {summary['projection_count']}"
-        )
+        expected = {
+            "agg_001": "2024-01-15T08:00:37Z",
+            "agg_002": "2024-01-15T08:00:37Z",
+            "agg_003": "2024-01-15T08:00:39Z",
+            "agg_004": "2024-01-15T08:00:37Z",
+        }
+        for agg_id, ts in expected.items():
+            assert proj_map[agg_id]["last_updated"] == ts, (
+                f"{agg_id} last_updated: expected {ts}, "
+                f"got {proj_map[agg_id]['last_updated']}"
+            )

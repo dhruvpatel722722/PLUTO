@@ -4,18 +4,18 @@ category = "event_sourcing"
 difficulty = "hard"
 tags = ["cqrs", "event-sourcing", "projection", "replay", "debugging"]
 
-difficulty_explanation = "Requires identifying four interacting bugs across configuration parsing, event ordering, batch processing, and state accumulation logic spread across multiple files."
-solution_explanation = "Fix config space-splitting for accepted_event_types, correct the batch_size section reference, change projection snapshot application from accumulation to replacement, and add _stream_id to the sort key for deterministic ordering."
-verification_explanation = "Tests validate output file structure, event counts after filtering, batch sizes, individual projection values, deterministic ordering, and full end-to-end correctness."
+difficulty_explanation = "Requires identifying five interacting bugs across configuration parsing, event ordering, batch processing, and state accumulation logic spread across multiple files with misleading code structure."
+solution_explanation = "Fix config space-splitting for accepted_types, correct the batch_size section reference from [replay] to [replay.engine], implement accumulation_mode check in projection snapshot application, and add _stream_id to the sort key for deterministic ordering."
+verification_explanation = "Tests validate output schema compliance, event conservation through filtering, batch configuration correctness, individual projection values including quantities and amounts, stream coverage, and timestamp accuracy."
 expert_time_estimate_hours = 3.0
 
 [task]
 name = "event-replay-repair"
-description = "Debug a CQRS event replay engine that ingests domain events from multiple streams, orders them deterministically, and replays in batches to build aggregate projections. Fix defects in config parsing, sort ordering, batch sizing, and projection state management."
+description = "Debug a CQRS event replay engine that ingests domain events from multiple streams, orders them deterministically, and replays in batches to build aggregate projections. Fix interacting defects in config parsing, sort ordering, batch sizing, and projection state management."
 
 [task.difficulty]
 level = "hard"
-reasoning = "Four bugs interact across config parsing, sorting, batching, and projection logic. The config space bug silently drops events, the wrong section reads incorrect batch size, snapshot accumulation inflates values, and missing sort key produces non-deterministic output."
+reasoning = "Five bugs interact across config parsing, sorting, batching, and projection logic. The config space bug silently drops events affecting downstream counts, the wrong section reads incorrect batch size changing batch boundaries, snapshot accumulation ignores the configured mode, and missing sort key produces non-deterministic output. Fixing individual bugs in isolation still leaves tests failing."
 
 [task.runtime]
 entrypoint = "python3 -m runtime.run_engine"
@@ -28,7 +28,7 @@ description = "Runs the engine then executes pytest to validate output correctne
 
 [task.repair]
 command = "bash solution/solve.sh"
-description = "Applies patches to fix all four bugs then re-runs the engine to produce correct output."
+description = "Applies patches to fix all bugs then re-runs the engine to produce correct output."
 
 [task.resources]
 timeout = 300

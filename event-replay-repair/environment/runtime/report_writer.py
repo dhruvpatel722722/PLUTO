@@ -1,4 +1,7 @@
-"""Writes output files: projections and replay summary."""
+"""Writes output files: projections and replay summary.
+
+Generates the final JSON output consumed by downstream systems.
+"""
 import json
 import os
 
