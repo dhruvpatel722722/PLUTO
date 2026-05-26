@@ -1,0 +1,37 @@
+author_name = "Dhruvkumar Patel"
+author_email = "dhruvpatel2284@gmail.com"
+category = "spatial_indexing"
+difficulty = "hard"
+tags = ["geofence", "spatial-indexing", "dwell-time", "event-processing", "alert-engine"]
+
+difficulty_explanation = "Requires identifying four interacting bugs across configuration parsing, threshold loading, temporal aggregation, and event ordering — each bug affects different output dimensions and the fixes require cross-file reasoning between config, ingestor, tracker, and sort logic."
+solution_explanation = "Fix the comma-split to strip whitespace on active feeds, read dwell threshold from the correct config section (alerting.realtime), replace accumulation with last-write-wins in the dwell tracker window loop, and add sensor_id to the sort key for deterministic ordering of same-timestamp events."
+verification_explanation = "Tests validate output file structure, event counts from all feeds including beacon_west, correct dwell thresholds from realtime config, per-window dwell isolation, deterministic event ordering, and alert generation with proper severity levels."
+expert_time_estimate_hours = 3.0
+
+[task]
+name = "geofence-alert-engine"
+description = "Debug a geofence alert engine that ingests location events from multiple sensor streams, indexes them into spatial grid cells, tracks asset dwell times, and generates threshold-based alerts."
+
+[task.difficulty]
+level = "hard"
+reasoning = "Four bugs span config parsing, section lookup, temporal aggregation logic, and sort stability — each requires reading multiple files and understanding the data flow to identify the root cause."
+
+[task.runtime]
+entrypoint = "python3 -m runtime.run_engine"
+language = "python"
+dependencies = "stdlib-only"
+
+[task.validator]
+command = "bash tests/test.sh"
+description = "Runs pytest suite validating event ingestion, zone classification, dwell computation, alert generation, and output report structure."
+
+[task.repair]
+command = "bash solution/solve.sh"
+description = "Patches four defects in config_loader.py, event_ingestor.py, and dwell_tracker.py then re-runs the engine."
+
+[task.resources]
+timeout = 300
+cpu = 2
+memory = "2GB"
+disk = "1GB"

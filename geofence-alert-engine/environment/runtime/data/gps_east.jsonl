@@ -1,0 +1,12 @@
+{"ts": "2024-03-15T08:00:12", "sensor_id": "gps_east", "seq": 1, "lat": 40.712, "lon": -74.022, "asset_id": "cart_01"}
+{"ts": "2024-03-15T08:00:42", "sensor_id": "gps_east", "seq": 2, "lat": 40.713, "lon": -74.021, "asset_id": "cart_01"}
+{"ts": "2024-03-15T08:01:12", "sensor_id": "gps_east", "seq": 3, "lat": 40.714, "lon": -74.020, "asset_id": "cart_01"}
+{"ts": "2024-03-15T08:01:42", "sensor_id": "gps_east", "seq": 4, "lat": 40.714, "lon": -74.020, "asset_id": "cart_01"}
+{"ts": "2024-03-15T08:02:12", "sensor_id": "gps_east", "seq": 5, "lat": 40.715, "lon": -74.019, "asset_id": "cart_02"}
+{"ts": "2024-03-15T08:02:42", "sensor_id": "gps_east", "seq": 6, "lat": 40.715, "lon": -74.019, "asset_id": "cart_02"}
+{"ts": "2024-03-15T08:03:12", "sensor_id": "gps_east", "seq": 7, "lat": 40.716, "lon": -74.018, "asset_id": "cart_01"}
+{"ts": "2024-03-15T08:03:42", "sensor_id": "gps_east", "seq": 8, "lat": 40.716, "lon": -74.018, "asset_id": "cart_01"}
+{"ts": "2024-03-15T08:04:12", "sensor_id": "gps_east", "seq": 9, "lat": 40.713, "lon": -74.021, "asset_id": "cart_02"}
+{"ts": "2024-03-15T08:04:42", "sensor_id": "gps_east", "seq": 10, "lat": 40.713, "lon": -74.021, "asset_id": "cart_02"}
+{"ts": "2024-03-15T08:05:12", "sensor_id": "gps_east", "seq": 11, "lat": 40.714, "lon": -74.020, "asset_id": "cart_01"}
+{"ts": "2024-03-15T08:05:42", "sensor_id": "gps_east", "seq": 12, "lat": 40.714, "lon": -74.020, "asset_id": "cart_01"}
