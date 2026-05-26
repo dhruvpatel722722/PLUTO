@@ -10,7 +10,7 @@ verification_explanation = "Tests validate output file structure, event counts a
 expert_time_estimate_hours = 3.0
 
 [task]
-name = "cqrs-event-replay-repair"
+name = "event-replay-repair"
 description = "Debug a CQRS event replay engine that ingests domain events from multiple streams, orders them deterministically, and replays in batches to build aggregate projections. Fix defects in config parsing, sort ordering, batch sizing, and projection state management."
 
 [task.difficulty]
